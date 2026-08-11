@@ -1,31 +1,11 @@
-
-
-<!DOCTYPE html>
-<html lang="zh-CN" data-default-color-scheme=auto>
-
-
-
-<head>
-  <meta charset="UTF-8">
-
-  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
-  <link rel="icon" href="/img/fluid.png">
-  
-
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
-  <meta http-equiv="x-ua-compatible" content="ie=edge">
-  
-  <meta name="theme-color" content="#2f4154">
-  <meta name="author" content="John Doe">
-  <meta name="keywords" content="">
-  
-    <meta name="description" content="在 Linux 环境下配置并启动 skynet 之后，为了更好地理解整个框架的运行机制，下一步就应该从源码入手。skynet 的底层核心是 C 语言实现，而 Lua 脚本主要用于业务层开发，因此我们可以先从 C 代码开始，了解它是如何完成框架启动的。 1. 入口函数与初始化我们平时启动 skynet 时使用下面的命令： 1.&#x2F;skynet example&#x2F;config  这条命令实际会调用 sky">
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Skynet 源码剖析：从 main 到 bootstrap 的启动流程 | Hexo</title><meta name="author" content="John Doe"><meta name="copyright" content="John Doe"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在 Linux 环境下配置并启动 skynet 之后，为了更好地理解整个框架的运行机制，下一步就应该从源码入手。skynet 的底层核心是 C 语言实现，而 Lua 脚本主要用于业务层开发，因此我们可以先从 C 代码开始，了解它是如何完成框架启动的。 1. 入口函数与初始化我们平时启动 skynet 时使用下面的命令： 1.&#x2F;skynet example&#x2F;config  这条命令实际会调用 sky">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Skynet 源码剖析：从 main 到 bootstrap 的启动流程">
 <meta property="og:url" content="https://skytiancarl.github.io/2026/08/11/skynet-source-analysis-startup/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="在 Linux 环境下配置并启动 skynet 之后，为了更好地理解整个框架的运行机制，下一步就应该从源码入手。skynet 的底层核心是 C 语言实现，而 Lua 脚本主要用于业务层开发，因此我们可以先从 C 代码开始，了解它是如何完成框架启动的。 1. 入口函数与初始化我们平时启动 skynet 时使用下面的命令： 1.&#x2F;skynet example&#x2F;config  这条命令实际会调用 sky">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://skytiancarl.github.io/img/butterfly-icon.png">
 <meta property="article:published_time" content="2026-08-11T04:00:00.000Z">
 <meta property="article:modified_time" content="2026-08-11T00:32:48.921Z">
 <meta property="article:author" content="John Doe">
@@ -33,360 +13,200 @@
 <meta property="article:tag" content="Lua">
 <meta property="article:tag" content="skynet">
 <meta property="article:tag" content="源码分析">
-<meta name="twitter:card" content="summary_large_image">
-  
-  
-  
-  <title>Skynet 源码剖析：从 main 到 bootstrap 的启动流程 - Hexo</title>
-
-  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
-
-
-
-  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
-
-  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
-
-  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
-
-
-
-<!-- 主题依赖的图标库，不要自行修改 -->
-<!-- Do not modify the link that theme dependent icons -->
-
-<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
-
-
-
-<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1736178_k526ubmyhba.css">
-
-
-<link  rel="stylesheet" href="/css/main.css" />
-
-
-  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
-  
-    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
-  
-
-
-
-
-  <script id="fluid-configs">
-    var Fluid = window.Fluid || {};
-    Fluid.ctx = Object.assign({}, Fluid.ctx)
-    var CONFIG = {"hostname":"skytiancarl.github.io","root":"/","version":"1.9.9","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"expand_all":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"openkounter":{"server_url":"https://open-kounter.mintimate.cn","path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null}},"search_path":"/local-search.xml","include_content_in_search":true};
-
-    if (CONFIG.web_analytics.follow_dnt) {
-      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
-      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://skytiancarl.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Skynet 源码剖析：从 main 到 bootstrap 的启动流程",
+  "url": "https://skytiancarl.github.io/2026/08/11/skynet-source-analysis-startup/",
+  "image": "https://skytiancarl.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-08-11T04:00:00.000Z",
+  "dateModified": "2026-08-11T00:32:48.921Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "John Doe",
+      "url": "https://skytiancarl.github.io"
     }
-  </script>
-  <script  src="/js/utils.js" ></script>
-  <script  src="/js/color-schema.js" ></script>
-  
-
-
-  
-<meta name="generator" content="Hexo 8.1.2"></head>
-
-
-<body>
-  
-
-  <header>
-    
-
-<div class="header-inner" style="height: 70vh;">
-  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
-  <div class="container">
-    <a class="navbar-brand" href="/">
-      <strong>Fluid</strong>
-    </a>
-
-    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
-            data-target="#navbarSupportedContent"
-            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-      <div class="animated-icon"><span></span><span></span><span></span></div>
-    </button>
-
-    <!-- Collapsible content (desktop) -->
-    <div class="collapse navbar-collapse" id="navbarSupportedContent">
-      <ul class="navbar-nav ml-auto text-center">
-        
-          
-          
-          
-          
-            <li class="nav-item">
-              <a class="nav-link" href="/" target="_self">
-                <i class="iconfont icon-home-fill"></i>
-                <span>首页</span>
-              </a>
-            </li>
-          
-        
-          
-          
-          
-          
-            <li class="nav-item">
-              <a class="nav-link" href="/archives/" target="_self">
-                <i class="iconfont icon-archive-fill"></i>
-                <span>归档</span>
-              </a>
-            </li>
-          
-        
-          
-          
-          
-          
-            <li class="nav-item">
-              <a class="nav-link" href="/categories/" target="_self">
-                <i class="iconfont icon-category-fill"></i>
-                <span>分类</span>
-              </a>
-            </li>
-          
-        
-          
-          
-          
-          
-            <li class="nav-item">
-              <a class="nav-link" href="/tags/" target="_self">
-                <i class="iconfont icon-tags-fill"></i>
-                <span>标签</span>
-              </a>
-            </li>
-          
-        
-          
-          
-          
-          
-            <li class="nav-item">
-              <a class="nav-link" href="/about/" target="_self">
-                <i class="iconfont icon-user-fill"></i>
-                <span>关于</span>
-              </a>
-            </li>
-          
-        
-        
-          <li class="nav-item" id="search-btn">
-            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
-              <i class="iconfont icon-search"></i>
-            </a>
-          </li>
-          
-        
-        
-          <li class="nav-item" id="color-toggle-btn">
-            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
-              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
-            </a>
-          </li>
-        
-      </ul>
-    </div>
-  </div>
-</nav>
-
-<!-- Mobile grid menu overlay -->
-<div id="mobile-grid-menu" class="d-lg-none">
-  <div class="mobile-grid-menu-inner">
-    <div class="container">
-      <div class="row">
-        
-          
-          
-          
-          
-            <div class="col-4 mobile-grid-cell">
-              <a href="/" target="_self">
-                <div class="mobile-grid-item">
-                  <i class="iconfont icon-home-fill"></i>
-                  <span>首页</span>
-                </div>
-              </a>
-            </div>
-          
-        
-          
-          
-          
-          
-            <div class="col-4 mobile-grid-cell">
-              <a href="/archives/" target="_self">
-                <div class="mobile-grid-item">
-                  <i class="iconfont icon-archive-fill"></i>
-                  <span>归档</span>
-                </div>
-              </a>
-            </div>
-          
-        
-          
-          
-          
-          
-            <div class="col-4 mobile-grid-cell">
-              <a href="/categories/" target="_self">
-                <div class="mobile-grid-item">
-                  <i class="iconfont icon-category-fill"></i>
-                  <span>分类</span>
-                </div>
-              </a>
-            </div>
-          
-        
-          
-          
-          
-          
-            <div class="col-4 mobile-grid-cell">
-              <a href="/tags/" target="_self">
-                <div class="mobile-grid-item">
-                  <i class="iconfont icon-tags-fill"></i>
-                  <span>标签</span>
-                </div>
-              </a>
-            </div>
-          
-        
-          
-          
-          
-          
-            <div class="col-4 mobile-grid-cell">
-              <a href="/about/" target="_self">
-                <div class="mobile-grid-item">
-                  <i class="iconfont icon-user-fill"></i>
-                  <span>关于</span>
-                </div>
-              </a>
-            </div>
-          
-        
-        
-          <div class="col-4 mobile-grid-cell" id="mobile-search-btn">
-            <a href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
-              <div class="mobile-grid-item">
-                <i class="iconfont icon-search"></i>
-                <span>搜索</span>
-              </div>
-            </a>
-          </div>
-        
-        
-          <div class="col-4 mobile-grid-cell" id="mobile-color-toggle-btn"
-               data-label-light="开灯"
-               data-label-dark="关灯">
-            <a href="javascript:;" aria-label="Color Toggle">
-              <div class="mobile-grid-item">
-                <i class="iconfont icon-dark" id="mobile-color-toggle-icon"></i>
-                <span id="mobile-color-toggle-label">关灯</span>
-              </div>
-            </a>
-          </div>
-        
-      </div>
-    </div>
-  </div>
-</div>
-
-  
-
-<div id="banner" class="banner" parallax=true
-     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
-  <div class="full-bg-img">
-    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
-      <div class="banner-text text-center fade-in-up">
-        <div class="h2">
-          
-            <span id="subtitle" data-typed-text="Skynet 源码剖析：从 main 到 bootstrap 的启动流程"></span>
-          
-        </div>
-
-        
-          
-  <div class="mt-3">
-    
-    
-      <span class="post-meta">
-        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-        <time datetime="2026-08-11 12:00" pubdate>
-          2026年8月11日 中午
-        </time>
-      </span>
-    
-  </div>
-
-  <div class="mt-1">
-    
-      <span class="post-meta mr-2">
-        <i class="iconfont icon-chart"></i>
-        
-          6.9k 字
-        
-      </span>
-    
-
-    
-      <span class="post-meta mr-2">
-        <i class="iconfont icon-clock-fill"></i>
-        
-        
-        
-          58 分钟
-        
-      </span>
-    
-
-    
-    
-  </div>
-
-
-        
-      </div>
-
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://skytiancarl.github.io/2026/08/11/skynet-source-analysis-startup/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.7.0"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.3.1/css/all.min.css"><script>
+    (() => {
       
-    </div>
-  </div>
-</div>
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        const data = { value }
 
+        if (ttl != null) {
+          data.expiry = Date.now() + ttl * 86400000
+        }
 
+        localStorage.setItem(key, JSON.stringify(data))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return
 
-</div>
+        try {
+          const data = JSON.parse(itemStr)
 
-  </header>
+          if (data.expiry && Date.now() > data.expiry) {
+            localStorage.removeItem(key)
+            return
+          }
 
-  <main>
+          return data.value
+        } catch {
+          localStorage.removeItem(key)
+        }
+      }
+    }
+
+    const scriptCache = new Map()
+    const cssCache = new Map()
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => {
+        if (scriptCache.has(url)) {
+          return scriptCache.get(url)
+        }
+
+        const promise = new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+
+          script.src = url
+          script.async = true
+
+          for (const key in attr) {
+            script.setAttribute(key, attr[key])
+          }
+
+          script.onload = resolve
+          script.onerror = reject
+
+          document.head.appendChild(script)
+        })
+
+        scriptCache.set(url, promise)
+
+        return promise
+      },
+      getCSS: (url, id) => {
+        if (cssCache.has(url)) {
+          return cssCache.get(url)
+        }
+
+        const promise = new Promise((resolve, reject) => {
+          const link = document.createElement('link')
+
+          link.rel = 'stylesheet'
+          link.href = url
+
+          if (id) {
+            link.id = id
+          }
+
+          link.onload = resolve
+          link.onerror = reject
+
+          document.head.appendChild(link)
+        })
+
+        cssCache.set(url, promise)
+
+        return promise
+      },
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const metaThemeColor = document.querySelector('meta[name="theme-color"]')
+      const activateDarkMode = () => {
+        document.documentElement.dataset.theme = 'dark'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.dataset.theme = 'light'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
     
       
-
-<div class="container-fluid nopadding-x">
-  <div class="row nomargin-x">
-    <div class="side-col d-none d-lg-block col-lg-2">
-      
-
-    </div>
-
-    <div class="col-lg-8 nopadding-x-md">
-      <div class="container nopadding-x-md" id="board-ctn">
-        <div id="board">
-          <article class="post-content mx-auto">
-            <h1 id="seo-header">Skynet 源码剖析：从 main 到 bootstrap 的启动流程</h1>
-            
-            
-              <div class="markdown-body">
-                
-                <p>在 Linux 环境下配置并启动 skynet 之后，为了更好地理解整个框架的运行机制，下一步就应该从源码入手。skynet 的底层核心是 C 语言实现，而 Lua 脚本主要用于业务层开发，因此我们可以先从 C 代码开始，了解它是如何完成框架启动的。</p>
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Skynet 源码剖析：从 main 到 bootstrap 的启动流程',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 8.1.2"></head><body><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Hexo</span></a><a class="nav-page-title" href="/"><span class="site-name">Skynet 源码剖析：从 main 到 bootstrap 的启动流程</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"></div></nav><div id="post-info"><h1 class="post-title">Skynet 源码剖析：从 main 到 bootstrap 的启动流程</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-08-11T04:00:00.000Z" title="发表于 2026-08-11 12:00:00">2026-08-11</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-08-11T00:32:48.921Z" title="更新于 2026-08-11 08:32:48">2026-08-11</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><p>在 Linux 环境下配置并启动 skynet 之后，为了更好地理解整个框架的运行机制，下一步就应该从源码入手。skynet 的底层核心是 C 语言实现，而 Lua 脚本主要用于业务层开发，因此我们可以先从 C 代码开始，了解它是如何完成框架启动的。</p>
 <h2 id="1-入口函数与初始化"><a href="#1-入口函数与初始化" class="headerlink" title="1. 入口函数与初始化"></a>1. 入口函数与初始化</h2><p>我们平时启动 skynet 时使用下面的命令：</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">./skynet example/config<br></code></pre></td></tr></table></figure>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./skynet example/config</span><br></pre></td></tr></table></figure>
 
 <p>这条命令实际会调用 skynet 的入口函数 main()，并把配置文件路径传入其中。在这个函数里，程序会依次完成以下几个关键步骤：</p>
 <ul>
@@ -399,11 +219,11 @@
 <li>调用真正的框架启动函数</li>
 </ul>
 <p>下面是这个入口函数的核心逻辑：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">main</span><span class="hljs-params">(<span class="hljs-type">int</span> argc, <span class="hljs-type">char</span> *argv[])</span> &#123;<br>    <span class="hljs-type">const</span> <span class="hljs-type">char</span> *config_file = <span class="hljs-literal">NULL</span>;<br><br>    <span class="hljs-keyword">if</span> (argc &gt; <span class="hljs-number">1</span>) &#123;<br>        config_file = argv[<span class="hljs-number">1</span>];<br>    &#125; <span class="hljs-keyword">else</span> &#123;<br>        <span class="hljs-built_in">fprintf</span>(<span class="hljs-built_in">stderr</span>, <span class="hljs-string">&quot;Need a config file. Please read skynet wiki : https://github.com/cloudwu/skynet/wiki/Config\n&quot;</span><br>            <span class="hljs-string">&quot;usage: skynet configfilename\n&quot;</span>);<br>        <span class="hljs-keyword">return</span> <span class="hljs-number">1</span>;<br>    &#125;<br><br>    luaS_initshr();<br>    skynet_globalinit();<br>    skynet_env_init();<br>    sigign();<br><br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">skynet_config</span> <span class="hljs-title">config</span>;</span><br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">lua_State</span> *<span class="hljs-title">L</span> =</span> luaL_newstate();<br>    luaL_openlibs(L);<br><br>    <span class="hljs-type">int</span> err = luaL_loadbufferx(L, load_config, <span class="hljs-built_in">strlen</span>(load_config), <span class="hljs-string">&quot;=[skynet config]&quot;</span>, <span class="hljs-string">&quot;t&quot;</span>);<br>    assert(err == LUA_OK);<br><br>    lua_pushstring(L, config_file);<br>    err = lua_pcall(L, <span class="hljs-number">1</span>, <span class="hljs-number">1</span>, <span class="hljs-number">0</span>);<br>    <span class="hljs-keyword">if</span> (err) &#123;<br>        <span class="hljs-built_in">fprintf</span>(<span class="hljs-built_in">stderr</span>, <span class="hljs-string">&quot;%s\n&quot;</span>, lua_tostring(L, <span class="hljs-number">-1</span>));<br>        lua_close(L);<br>        <span class="hljs-keyword">return</span> <span class="hljs-number">1</span>;<br>    &#125;<br><br>    _init_env(L);<br><br>    config.thread = optint(<span class="hljs-string">&quot;thread&quot;</span>, <span class="hljs-number">8</span>);<br>    config.module_path = optstring(<span class="hljs-string">&quot;cpath&quot;</span>, <span class="hljs-string">&quot;./cservice/?.so&quot;</span>);<br>    config.harbor = optint(<span class="hljs-string">&quot;harbor&quot;</span>, <span class="hljs-number">1</span>);<br>    config.bootstrap = optstring(<span class="hljs-string">&quot;bootstrap&quot;</span>, <span class="hljs-string">&quot;snlua bootstrap&quot;</span>);<br>    config.daemon = optstring(<span class="hljs-string">&quot;daemon&quot;</span>, <span class="hljs-literal">NULL</span>);<br>    config.logger = optstring(<span class="hljs-string">&quot;logger&quot;</span>, <span class="hljs-literal">NULL</span>);<br>    config.logservice = optstring(<span class="hljs-string">&quot;logservice&quot;</span>, <span class="hljs-string">&quot;logger&quot;</span>);<br>    config.profile = optboolean(<span class="hljs-string">&quot;profile&quot;</span>, <span class="hljs-number">1</span>);<br><br>    lua_close(L);<br>    skynet_start(&amp;config);<br>    skynet_globalexit();<br>    luaS_exitshr();<br><br>    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span> *argv[])</span> &#123;</span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *config_file = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (argc &gt; <span class="number">1</span>) &#123;</span><br><span class="line">        config_file = argv[<span class="number">1</span>];</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="built_in">fprintf</span>(<span class="built_in">stderr</span>, <span class="string">&quot;Need a config file. Please read skynet wiki : https://github.com/cloudwu/skynet/wiki/Config\n&quot;</span></span><br><span class="line">            <span class="string">&quot;usage: skynet configfilename\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    luaS_initshr();</span><br><span class="line">    skynet_globalinit();</span><br><span class="line">    skynet_env_init();</span><br><span class="line">    sigign();</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">skynet_config</span> <span class="title">config</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">lua_State</span> *<span class="title">L</span> =</span> luaL_newstate();</span><br><span class="line">    luaL_openlibs(L);</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> err = luaL_loadbufferx(L, load_config, <span class="built_in">strlen</span>(load_config), <span class="string">&quot;=[skynet config]&quot;</span>, <span class="string">&quot;t&quot;</span>);</span><br><span class="line">    assert(err == LUA_OK);</span><br><span class="line"></span><br><span class="line">    lua_pushstring(L, config_file);</span><br><span class="line">    err = lua_pcall(L, <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>);</span><br><span class="line">    <span class="keyword">if</span> (err) &#123;</span><br><span class="line">        <span class="built_in">fprintf</span>(<span class="built_in">stderr</span>, <span class="string">&quot;%s\n&quot;</span>, lua_tostring(L, <span class="number">-1</span>));</span><br><span class="line">        lua_close(L);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    _init_env(L);</span><br><span class="line"></span><br><span class="line">    config.thread = optint(<span class="string">&quot;thread&quot;</span>, <span class="number">8</span>);</span><br><span class="line">    config.module_path = optstring(<span class="string">&quot;cpath&quot;</span>, <span class="string">&quot;./cservice/?.so&quot;</span>);</span><br><span class="line">    config.harbor = optint(<span class="string">&quot;harbor&quot;</span>, <span class="number">1</span>);</span><br><span class="line">    config.bootstrap = optstring(<span class="string">&quot;bootstrap&quot;</span>, <span class="string">&quot;snlua bootstrap&quot;</span>);</span><br><span class="line">    config.daemon = optstring(<span class="string">&quot;daemon&quot;</span>, <span class="literal">NULL</span>);</span><br><span class="line">    config.logger = optstring(<span class="string">&quot;logger&quot;</span>, <span class="literal">NULL</span>);</span><br><span class="line">    config.logservice = optstring(<span class="string">&quot;logservice&quot;</span>, <span class="string">&quot;logger&quot;</span>);</span><br><span class="line">    config.profile = optboolean(<span class="string">&quot;profile&quot;</span>, <span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">    lua_close(L);</span><br><span class="line">    skynet_start(&amp;config);</span><br><span class="line">    skynet_globalexit();</span><br><span class="line">    luaS_exitshr();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>这个过程可以概括为一句话：先准备好运行环境，再把配置内容解析出来，最后由真正的启动逻辑把 skynet 拉起来。</p>
 <h2 id="2-配置结构体：skynet-config"><a href="#2-配置结构体：skynet-config" class="headerlink" title="2. 配置结构体：skynet_config"></a>2. 配置结构体：skynet_config</h2><p>在 skynet 的源码中，启动时需要的核心配置被封装在一个结构体里，这个结构体里保存了多个重要项：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">skynet_config</span> &#123;</span><br>    <span class="hljs-type">int</span> thread;<br>    <span class="hljs-type">int</span> harbor;<br>    <span class="hljs-type">int</span> profile;<br>    <span class="hljs-type">const</span> <span class="hljs-type">char</span> *daemon;<br>    <span class="hljs-type">const</span> <span class="hljs-type">char</span> *module_path;<br>    <span class="hljs-type">const</span> <span class="hljs-type">char</span> *bootstrap;<br>    <span class="hljs-type">const</span> <span class="hljs-type">char</span> *logger;<br>    <span class="hljs-type">const</span> <span class="hljs-type">char</span> *logservice;<br>&#125;;<br></code></pre></td></tr></table></figure>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">skynet_config</span> &#123;</span></span><br><span class="line">    <span class="type">int</span> thread;</span><br><span class="line">    <span class="type">int</span> harbor;</span><br><span class="line">    <span class="type">int</span> profile;</span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *daemon;</span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *module_path;</span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *bootstrap;</span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *logger;</span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *logservice;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 
 <p>这些字段的含义非常关键：</p>
 <ul>
@@ -417,7 +237,7 @@
 <li><code>logservice</code>：日志服务名称。</li>
 </ul>
 <h2 id="3-真正启动-skynet：skynet-start"><a href="#3-真正启动-skynet：skynet-start" class="headerlink" title="3. 真正启动 skynet：skynet_start()"></a>3. 真正启动 skynet：skynet_start()</h2><p>入口函数最后会调用一个名为 <code>skynet_start()</code> 的函数，这个函数是整个启动流程的核心。它会依次完成各个子模块的初始化工作：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> <span class="hljs-title function_">skynet_start</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> skynet_config *config)</span> &#123;<br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">sigaction</span> <span class="hljs-title">sa</span>;</span><br>    sa.sa_handler = &amp;handle_hup;<br>    sa.sa_flags = SA_RESTART;<br>    sigfillset(&amp;sa.sa_mask);<br>    sigaction(SIGHUP, &amp;sa, <span class="hljs-literal">NULL</span>);<br><br>    <span class="hljs-keyword">if</span> (config-&gt;daemon) &#123;<br>        <span class="hljs-keyword">if</span> (daemon_init(config-&gt;daemon)) &#123;<br>            <span class="hljs-built_in">exit</span>(<span class="hljs-number">1</span>);<br>        &#125;<br>    &#125;<br><br>    skynet_harbor_init(config-&gt;harbor);<br>    skynet_handle_init(config-&gt;harbor);<br>    skynet_mq_init();<br>    skynet_module_init(config-&gt;module_path);<br>    skynet_timer_init();<br>    skynet_socket_init();<br>    skynet_profile_enable(config-&gt;profile);<br><br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">skynet_context</span> *<span class="hljs-title">ctx</span> =</span> skynet_context_new(config-&gt;logservice, config-&gt;logger);<br>    <span class="hljs-keyword">if</span> (ctx == <span class="hljs-literal">NULL</span>) &#123;<br>        <span class="hljs-built_in">fprintf</span>(<span class="hljs-built_in">stderr</span>, <span class="hljs-string">&quot;Can&#x27;t launch %s service\n&quot;</span>, config-&gt;logservice);<br>        <span class="hljs-built_in">exit</span>(<span class="hljs-number">1</span>);<br>    &#125;<br><br>    bootstrap(ctx, config-&gt;bootstrap);<br><br>    start(config-&gt;thread);<br><br>    skynet_harbor_exit();<br>    skynet_socket_free();<br>    <span class="hljs-keyword">if</span> (config-&gt;daemon) &#123;<br>        daemon_exit(config-&gt;daemon);<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">skynet_start</span><span class="params">(<span class="keyword">struct</span> skynet_config *config)</span> &#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">sigaction</span> <span class="title">sa</span>;</span></span><br><span class="line">    sa.sa_handler = &amp;handle_hup;</span><br><span class="line">    sa.sa_flags = SA_RESTART;</span><br><span class="line">    sigfillset(&amp;sa.sa_mask);</span><br><span class="line">    sigaction(SIGHUP, &amp;sa, <span class="literal">NULL</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (config-&gt;daemon) &#123;</span><br><span class="line">        <span class="keyword">if</span> (daemon_init(config-&gt;daemon)) &#123;</span><br><span class="line">            <span class="built_in">exit</span>(<span class="number">1</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    skynet_harbor_init(config-&gt;harbor);</span><br><span class="line">    skynet_handle_init(config-&gt;harbor);</span><br><span class="line">    skynet_mq_init();</span><br><span class="line">    skynet_module_init(config-&gt;module_path);</span><br><span class="line">    skynet_timer_init();</span><br><span class="line">    skynet_socket_init();</span><br><span class="line">    skynet_profile_enable(config-&gt;profile);</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">skynet_context</span> *<span class="title">ctx</span> =</span> skynet_context_new(config-&gt;logservice, config-&gt;logger);</span><br><span class="line">    <span class="keyword">if</span> (ctx == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        <span class="built_in">fprintf</span>(<span class="built_in">stderr</span>, <span class="string">&quot;Can&#x27;t launch %s service\n&quot;</span>, config-&gt;logservice);</span><br><span class="line">        <span class="built_in">exit</span>(<span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    bootstrap(ctx, config-&gt;bootstrap);</span><br><span class="line"></span><br><span class="line">    start(config-&gt;thread);</span><br><span class="line"></span><br><span class="line">    skynet_harbor_exit();</span><br><span class="line">    skynet_socket_free();</span><br><span class="line">    <span class="keyword">if</span> (config-&gt;daemon) &#123;</span><br><span class="line">        daemon_exit(config-&gt;daemon);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>这段代码的大体顺序如下：</p>
 <ol>
@@ -438,20 +258,20 @@
 </ul>
 <p>最终，skynet 就会把这个服务放进消息调度系统中，后续的消息就能被正确投递。</p>
 <h2 id="5-启动-bootstrap：第一个-Lua-服务"><a href="#5-启动-bootstrap：第一个-Lua-服务" class="headerlink" title="5. 启动 bootstrap：第一个 Lua 服务"></a>5. 启动 bootstrap：第一个 Lua 服务</h2><p>在完成基础模块初始化之后，skynet 会开始加载 bootstrap 引导服务。默认配置中，<code>bootstrap</code> 的内容通常是：</p>
-<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">snlua bootstrap<br></code></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">snlua bootstrap</span><br></pre></td></tr></table></figure>
 
 <p>也就是说，skynet 会启动一个名为 <code>snlua</code> 的服务，并把 <code>bootstrap</code> 作为它的初始化参数。随后，bootstrap 服务会根据配置中提供的 luaservice 路径去寻找对应的 Lua 脚本。</p>
 <p>bootstrap 的核心逻辑由一个函数完成：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">bootstrap</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> skynet_context *logger, <span class="hljs-type">const</span> <span class="hljs-type">char</span> *cmdline)</span> &#123;<br>    <span class="hljs-type">int</span> sz = <span class="hljs-built_in">strlen</span>(cmdline);<br>    <span class="hljs-type">char</span> name[sz + <span class="hljs-number">1</span>];<br>    <span class="hljs-type">char</span> args[sz + <span class="hljs-number">1</span>];<br><br>    <span class="hljs-built_in">sscanf</span>(cmdline, <span class="hljs-string">&quot;%s %s&quot;</span>, name, args);<br><br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">skynet_context</span> *<span class="hljs-title">ctx</span> =</span> skynet_context_new(name, args);<br>    <span class="hljs-keyword">if</span> (ctx == <span class="hljs-literal">NULL</span>) &#123;<br>        skynet_error(<span class="hljs-literal">NULL</span>, <span class="hljs-string">&quot;Bootstrap error : %s\n&quot;</span>, cmdline);<br>        skynet_context_dispatchall(logger);<br>        <span class="hljs-built_in">exit</span>(<span class="hljs-number">1</span>);<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">bootstrap</span><span class="params">(<span class="keyword">struct</span> skynet_context *logger, <span class="type">const</span> <span class="type">char</span> *cmdline)</span> &#123;</span><br><span class="line">    <span class="type">int</span> sz = <span class="built_in">strlen</span>(cmdline);</span><br><span class="line">    <span class="type">char</span> name[sz + <span class="number">1</span>];</span><br><span class="line">    <span class="type">char</span> args[sz + <span class="number">1</span>];</span><br><span class="line"></span><br><span class="line">    <span class="built_in">sscanf</span>(cmdline, <span class="string">&quot;%s %s&quot;</span>, name, args);</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">skynet_context</span> *<span class="title">ctx</span> =</span> skynet_context_new(name, args);</span><br><span class="line">    <span class="keyword">if</span> (ctx == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        skynet_error(<span class="literal">NULL</span>, <span class="string">&quot;Bootstrap error : %s\n&quot;</span>, cmdline);</span><br><span class="line">        skynet_context_dispatchall(logger);</span><br><span class="line">        <span class="built_in">exit</span>(<span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>这段逻辑的作用非常简单：把字符串 <code>snlua bootstrap</code> 拆分成模块名和参数，然后创建对应的服务实例。</p>
 <h2 id="6-snlua：Lua-服务的沙盒环境"><a href="#6-snlua：Lua-服务的沙盒环境" class="headerlink" title="6. snlua：Lua 服务的沙盒环境"></a>6. snlua：Lua 服务的沙盒环境</h2><p><code>snlua</code> 是 skynet 中最重要的 Lua 服务载体之一。它本质上是一个 Lua 沙盒环境，每一个 Lua 服务都会在独立的 Lua 虚拟机中运行。</p>
 <h3 id="6-1-实例化过程"><a href="#6-1-实例化过程" class="headerlink" title="6.1 实例化过程"></a>6.1 实例化过程</h3><p>在 <code>snlua</code> 模块中，创建实例时会调用下面的逻辑：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">struct</span> snlua *<span class="hljs-title function_">snlua_create</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span> &#123;<br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">snlua</span> *<span class="hljs-title">l</span> =</span> skynet_malloc(<span class="hljs-keyword">sizeof</span>(*l));<br>    <span class="hljs-built_in">memset</span>(l, <span class="hljs-number">0</span>, <span class="hljs-keyword">sizeof</span>(*l));<br>    l-&gt;mem_report = MEMORY_WARNING_REPORT;<br>    l-&gt;mem_limit = <span class="hljs-number">0</span>;<br>    l-&gt;L = lua_newstate(lalloc, l);<br>    <span class="hljs-keyword">return</span> l;<br>&#125;<br></code></pre></td></tr></table></figure>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> snlua *<span class="title function_">snlua_create</span><span class="params">(<span class="type">void</span>)</span> &#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">snlua</span> *<span class="title">l</span> =</span> skynet_malloc(<span class="keyword">sizeof</span>(*l));</span><br><span class="line">    <span class="built_in">memset</span>(l, <span class="number">0</span>, <span class="keyword">sizeof</span>(*l));</span><br><span class="line">    l-&gt;mem_report = MEMORY_WARNING_REPORT;</span><br><span class="line">    l-&gt;mem_limit = <span class="number">0</span>;</span><br><span class="line">    l-&gt;L = lua_newstate(lalloc, l);</span><br><span class="line">    <span class="keyword">return</span> l;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>这一步的重点是：为每个 Lua 服务创建一个独立的 Lua VM，避免不同服务之间互相污染环境。</p>
 <h3 id="6-2-初始化过程"><a href="#6-2-初始化过程" class="headerlink" title="6.2 初始化过程"></a>6.2 初始化过程</h3><p>实例创建完成后，还需要做初始化工作：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">snlua_init</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> snlua *l, <span class="hljs-keyword">struct</span> skynet_context *ctx, <span class="hljs-type">const</span> <span class="hljs-type">char</span> *args)</span> &#123;<br>    <span class="hljs-type">int</span> sz = <span class="hljs-built_in">strlen</span>(args);<br>    <span class="hljs-type">char</span> *tmp = skynet_malloc(sz);<br>    <span class="hljs-built_in">memcpy</span>(tmp, args, sz);<br><br>    skynet_callback(ctx, l, launch_cb);<br>    <span class="hljs-type">const</span> <span class="hljs-type">char</span> *self = skynet_command(ctx, <span class="hljs-string">&quot;REG&quot;</span>, <span class="hljs-literal">NULL</span>);<br>    <span class="hljs-type">uint32_t</span> handle_id = strtoul(self + <span class="hljs-number">1</span>, <span class="hljs-literal">NULL</span>, <span class="hljs-number">16</span>);<br><br>    skynet_send(ctx, <span class="hljs-number">0</span>, handle_id, PTYPE_TAG_DONTCOPY, <span class="hljs-number">0</span>, tmp, sz);<br>    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">snlua_init</span><span class="params">(<span class="keyword">struct</span> snlua *l, <span class="keyword">struct</span> skynet_context *ctx, <span class="type">const</span> <span class="type">char</span> *args)</span> &#123;</span><br><span class="line">    <span class="type">int</span> sz = <span class="built_in">strlen</span>(args);</span><br><span class="line">    <span class="type">char</span> *tmp = skynet_malloc(sz);</span><br><span class="line">    <span class="built_in">memcpy</span>(tmp, args, sz);</span><br><span class="line"></span><br><span class="line">    skynet_callback(ctx, l, launch_cb);</span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *self = skynet_command(ctx, <span class="string">&quot;REG&quot;</span>, <span class="literal">NULL</span>);</span><br><span class="line">    <span class="type">uint32_t</span> handle_id = strtoul(self + <span class="number">1</span>, <span class="literal">NULL</span>, <span class="number">16</span>);</span><br><span class="line"></span><br><span class="line">    skynet_send(ctx, <span class="number">0</span>, handle_id, PTYPE_TAG_DONTCOPY, <span class="number">0</span>, tmp, sz);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>这里完成了两件重要的事情：</p>
 <ul>
@@ -460,7 +280,7 @@
 </ul>
 <p>当这条消息被处理时，就会进入 <code>launch_cb()</code>，它会进一步加载 Lua 环境、设置路径变量，并最终执行入口脚本。</p>
 <h2 id="7-Lua-层的入口：bootstrap-lua"><a href="#7-Lua-层的入口：bootstrap-lua" class="headerlink" title="7. Lua 层的入口：bootstrap.lua"></a>7. Lua 层的入口：bootstrap.lua</h2><p>当底层 C 逻辑完成之后，控制权就会转移到 Lua 层。skynet 会加载并执行 bootstrap.lua，这个文件就是整个 Lua 服务启动链路的起点。</p>
-<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><code class="hljs lua"><span class="hljs-keyword">local</span> skynet = <span class="hljs-built_in">require</span> <span class="hljs-string">&quot;skynet&quot;</span><br><span class="hljs-keyword">local</span> harbor = <span class="hljs-built_in">require</span> <span class="hljs-string">&quot;skynet.harbor&quot;</span><br><span class="hljs-built_in">require</span> <span class="hljs-string">&quot;skynet.manager&quot;</span><br><span class="hljs-keyword">local</span> memory = <span class="hljs-built_in">require</span> <span class="hljs-string">&quot;memory&quot;</span><br><br>skynet.start(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span><br>    <span class="hljs-keyword">local</span> sharestring = <span class="hljs-built_in">tonumber</span>(skynet.<span class="hljs-built_in">getenv</span> <span class="hljs-string">&quot;sharestring&quot;</span> <span class="hljs-keyword">or</span> <span class="hljs-number">4096</span>)<br>    memory.ssexpand(sharestring)<br><br>    <span class="hljs-keyword">local</span> standalone = skynet.<span class="hljs-built_in">getenv</span> <span class="hljs-string">&quot;standalone&quot;</span><br><br>    <span class="hljs-keyword">local</span> launcher = <span class="hljs-built_in">assert</span>(skynet.launch(<span class="hljs-string">&quot;snlua&quot;</span>, <span class="hljs-string">&quot;launcher&quot;</span>))<br>    skynet.name(<span class="hljs-string">&quot;.launcher&quot;</span>, launcher)<br><br>    <span class="hljs-keyword">local</span> harbor_id = <span class="hljs-built_in">tonumber</span>(skynet.<span class="hljs-built_in">getenv</span> <span class="hljs-string">&quot;harbor&quot;</span> <span class="hljs-keyword">or</span> <span class="hljs-number">0</span>)<br>    <span class="hljs-keyword">if</span> harbor_id == <span class="hljs-number">0</span> <span class="hljs-keyword">then</span><br>        <span class="hljs-built_in">assert</span>(standalone == <span class="hljs-literal">nil</span>)<br>        standalone = <span class="hljs-literal">true</span><br>        skynet.setenv(<span class="hljs-string">&quot;standalone&quot;</span>, <span class="hljs-string">&quot;true&quot;</span>)<br><br>        <span class="hljs-keyword">local</span> ok, slave = <span class="hljs-built_in">pcall</span>(skynet.newservice, <span class="hljs-string">&quot;cdummy&quot;</span>)<br>        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> ok <span class="hljs-keyword">then</span><br>            skynet.abort()<br>        <span class="hljs-keyword">end</span><br>        skynet.name(<span class="hljs-string">&quot;.cslave&quot;</span>, slave)<br>    <span class="hljs-keyword">else</span><br>        <span class="hljs-keyword">if</span> standalone <span class="hljs-keyword">then</span><br>            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">pcall</span>(skynet.newservice, <span class="hljs-string">&quot;cmaster&quot;</span>) <span class="hljs-keyword">then</span><br>                skynet.abort()<br>            <span class="hljs-keyword">end</span><br>        <span class="hljs-keyword">end</span><br><br>        <span class="hljs-keyword">local</span> ok, slave = <span class="hljs-built_in">pcall</span>(skynet.newservice, <span class="hljs-string">&quot;cslave&quot;</span>)<br>        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> ok <span class="hljs-keyword">then</span><br>            skynet.abort()<br>        <span class="hljs-keyword">end</span><br>        skynet.name(<span class="hljs-string">&quot;.cslave&quot;</span>, slave)<br>    <span class="hljs-keyword">end</span><br><br>    <span class="hljs-keyword">if</span> standalone <span class="hljs-keyword">then</span><br>        <span class="hljs-keyword">local</span> datacenter = skynet.newservice <span class="hljs-string">&quot;datacenterd&quot;</span><br>        skynet.name(<span class="hljs-string">&quot;DATACENTER&quot;</span>, datacenter)<br>    <span class="hljs-keyword">end</span><br><br>    skynet.newservice <span class="hljs-string">&quot;service_mgr&quot;</span><br>    <span class="hljs-built_in">pcall</span>(skynet.newservice, skynet.<span class="hljs-built_in">getenv</span> <span class="hljs-string">&quot;start&quot;</span> <span class="hljs-keyword">or</span> <span class="hljs-string">&quot;main&quot;</span>)<br>    skynet.<span class="hljs-built_in">exit</span>()<br><span class="hljs-keyword">end</span>)<br></code></pre></td></tr></table></figure>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">local</span> skynet = <span class="built_in">require</span> <span class="string">&quot;skynet&quot;</span></span><br><span class="line"><span class="keyword">local</span> harbor = <span class="built_in">require</span> <span class="string">&quot;skynet.harbor&quot;</span></span><br><span class="line"><span class="built_in">require</span> <span class="string">&quot;skynet.manager&quot;</span></span><br><span class="line"><span class="keyword">local</span> memory = <span class="built_in">require</span> <span class="string">&quot;memory&quot;</span></span><br><span class="line"></span><br><span class="line">skynet.start(<span class="function"><span class="keyword">function</span><span class="params">()</span></span></span><br><span class="line">    <span class="keyword">local</span> sharestring = <span class="built_in">tonumber</span>(skynet.<span class="built_in">getenv</span> <span class="string">&quot;sharestring&quot;</span> <span class="keyword">or</span> <span class="number">4096</span>)</span><br><span class="line">    memory.ssexpand(sharestring)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">local</span> standalone = skynet.<span class="built_in">getenv</span> <span class="string">&quot;standalone&quot;</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">local</span> launcher = <span class="built_in">assert</span>(skynet.launch(<span class="string">&quot;snlua&quot;</span>, <span class="string">&quot;launcher&quot;</span>))</span><br><span class="line">    skynet.name(<span class="string">&quot;.launcher&quot;</span>, launcher)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">local</span> harbor_id = <span class="built_in">tonumber</span>(skynet.<span class="built_in">getenv</span> <span class="string">&quot;harbor&quot;</span> <span class="keyword">or</span> <span class="number">0</span>)</span><br><span class="line">    <span class="keyword">if</span> harbor_id == <span class="number">0</span> <span class="keyword">then</span></span><br><span class="line">        <span class="built_in">assert</span>(standalone == <span class="literal">nil</span>)</span><br><span class="line">        standalone = <span class="literal">true</span></span><br><span class="line">        skynet.setenv(<span class="string">&quot;standalone&quot;</span>, <span class="string">&quot;true&quot;</span>)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">local</span> ok, slave = <span class="built_in">pcall</span>(skynet.newservice, <span class="string">&quot;cdummy&quot;</span>)</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> ok <span class="keyword">then</span></span><br><span class="line">            skynet.abort()</span><br><span class="line">        <span class="keyword">end</span></span><br><span class="line">        skynet.name(<span class="string">&quot;.cslave&quot;</span>, slave)</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">        <span class="keyword">if</span> standalone <span class="keyword">then</span></span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> <span class="built_in">pcall</span>(skynet.newservice, <span class="string">&quot;cmaster&quot;</span>) <span class="keyword">then</span></span><br><span class="line">                skynet.abort()</span><br><span class="line">            <span class="keyword">end</span></span><br><span class="line">        <span class="keyword">end</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">local</span> ok, slave = <span class="built_in">pcall</span>(skynet.newservice, <span class="string">&quot;cslave&quot;</span>)</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> ok <span class="keyword">then</span></span><br><span class="line">            skynet.abort()</span><br><span class="line">        <span class="keyword">end</span></span><br><span class="line">        skynet.name(<span class="string">&quot;.cslave&quot;</span>, slave)</span><br><span class="line">    <span class="keyword">end</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> standalone <span class="keyword">then</span></span><br><span class="line">        <span class="keyword">local</span> datacenter = skynet.newservice <span class="string">&quot;datacenterd&quot;</span></span><br><span class="line">        skynet.name(<span class="string">&quot;DATACENTER&quot;</span>, datacenter)</span><br><span class="line">    <span class="keyword">end</span></span><br><span class="line"></span><br><span class="line">    skynet.newservice <span class="string">&quot;service_mgr&quot;</span></span><br><span class="line">    <span class="built_in">pcall</span>(skynet.newservice, skynet.<span class="built_in">getenv</span> <span class="string">&quot;start&quot;</span> <span class="keyword">or</span> <span class="string">&quot;main&quot;</span>)</span><br><span class="line">    skynet.<span class="built_in">exit</span>()</span><br><span class="line"><span class="keyword">end</span>)</span><br></pre></td></tr></table></figure>
 
 <p>这个脚本的作用并不只是“启动一个服务”，而是整个 skynet 初始化的关键步骤：</p>
 <ul>
@@ -471,7 +291,7 @@
 <li>最后退出 bootstrap 过程。</li>
 </ul>
 <h2 id="8-skynet-start：Lua-服务的标准入口"><a href="#8-skynet-start：Lua-服务的标准入口" class="headerlink" title="8. skynet.start：Lua 服务的标准入口"></a>8. skynet.start：Lua 服务的标准入口</h2><p>在 Lua 侧，所有服务都会通过 <code>skynet.start()</code> 作为标准启动入口。它的实现逻辑非常简单：</p>
-<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs lua"><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">skynet.start</span><span class="hljs-params">(start_func)</span></span><br>    c.callback(skynet.dispatch_message)<br>    skynet.timeout(<span class="hljs-number">0</span>, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span><br>        skynet.init_service(start_func)<br>    <span class="hljs-keyword">end</span>)<br><span class="hljs-keyword">end</span><br></code></pre></td></tr></table></figure>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">skynet.start</span><span class="params">(start_func)</span></span></span><br><span class="line">    c.callback(skynet.dispatch_message)</span><br><span class="line">    skynet.timeout(<span class="number">0</span>, <span class="function"><span class="keyword">function</span><span class="params">()</span></span></span><br><span class="line">        skynet.init_service(start_func)</span><br><span class="line">    <span class="keyword">end</span>)</span><br><span class="line"><span class="keyword">end</span></span><br></pre></td></tr></table></figure>
 
 <p>这里的核心思想是：</p>
 <ul>
@@ -488,436 +308,4 @@
 <li>Lua 层的 <code>bootstrap.lua</code> 负责启动一系列基础服务和业务服务。</li>
 </ol>
 <p>因此，skynet 的启动并不是单纯“启动一个进程”，而是一个“从 C 层初始化框架，再把控制权交给 Lua 层”的完整流程。只有把这条链路理清楚，后续在分析消息派发、服务调度、定时器和网络模块时，才会更容易把握整体架构。</p>
-
-                
-              </div>
-            
-            <hr/>
-            <div>
-              <div class="post-metas my-3">
-  
-    <div class="post-meta mr-3 d-flex align-items-center">
-      <i class="iconfont icon-category"></i>
-      
-
-<span class="category-chains">
-  
-  
-    
-      <span class="category-chain">
-        
-  <a href="/categories/%E6%8A%80%E6%9C%AF/" class="category-chain-item">技术</a>
-  
-  
-
-      </span>
-    
-  
-</span>
-
-    </div>
-  
-  
-    <div class="post-meta">
-      <i class="iconfont icon-tags"></i>
-      
-        <a href="/tags/skynet/" class="print-no-link">#skynet</a>
-      
-        <a href="/tags/C/" class="print-no-link">#C</a>
-      
-        <a href="/tags/Lua/" class="print-no-link">#Lua</a>
-      
-        <a href="/tags/%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" class="print-no-link">#源码分析</a>
-      
-    </div>
-  
-</div>
-
-
-              
-  
-
-  <div class="license-box my-3">
-    <div class="license-title">
-      <div>Skynet 源码剖析：从 main 到 bootstrap 的启动流程</div>
-      <div>https://skytiancarl.github.io/2026/08/11/skynet-source-analysis-startup/</div>
-    </div>
-    <div class="license-meta">
-      
-        <div class="license-meta-item">
-          <div>作者</div>
-          <div>John Doe</div>
-        </div>
-      
-      
-        <div class="license-meta-item license-meta-date">
-          <div>发布于</div>
-          <div>2026年8月11日</div>
-        </div>
-      
-      
-      
-        <div class="license-meta-item">
-          <div>许可协议</div>
-          <div>
-            
-              
-              
-                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
-                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
-                    <i class="iconfont icon-cc-by"></i>
-                  </span>
-                </a>
-              
-            
-          </div>
-        </div>
-      
-    </div>
-    <div class="license-icon iconfont"></div>
-  </div>
-
-
-
-              
-                <div class="post-prevnext my-3">
-                  <article class="post-prev col-6">
-                    
-                    
-                  </article>
-                  <article class="post-next col-6">
-                    
-                    
-                      <a href="/2026/08/10/hello-world/" title="Hello World">
-                        <span class="hidden-mobile">Hello World</span>
-                        <span class="visible-mobile">下一篇</span>
-                        <i class="iconfont icon-arrowright"></i>
-                      </a>
-                    
-                  </article>
-                </div>
-              
-            </div>
-
-            
-          </article>
-        </div>
-      </div>
-    </div>
-
-    <div class="side-col d-none d-lg-block col-lg-2">
-      
-  <aside class="sidebar" style="margin-left: -1rem">
-    <div id="toc">
-  <p class="toc-header">
-    <i class="iconfont icon-list"></i>
-    <span>目录</span>
-  </p>
-  <div class="toc-body" id="toc-body"></div>
-</div>
-
-
-
-  </aside>
-
-
-    </div>
-  </div>
-</div>
-
-
-
-
-
-  
-
-
-
-  
-
-
-
-  
-
-
-
-  
-
-
-
-  
-
-
-
-
-
-
-
-    
-
-    
-      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
-        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
-      </a>
-    
-
-    
-      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
-     aria-hidden="true">
-  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
-    <div class="modal-content">
-      <div class="modal-header text-center">
-        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
-        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body mx-3">
-        <div class="md-form mb-5">
-          <input type="text" id="local-search-input" class="form-control validate">
-          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
-        </div>
-        <div class="list-group" id="local-search-result"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-    
-
-    
-  </main>
-
-  <footer>
-    <div class="footer-inner">
-  
-    <div class="footer-content">
-       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
-    </div>
-  
-  
-  
-</div>
-
-  </footer>
-
-  <!-- Scripts -->
-  
-  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
-  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
-
-  <script>
-    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
-    NProgress.start()
-    window.addEventListener('load', function() {
-      NProgress.done();
-    })
-  </script>
-
-
-<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
-<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
-<script  src="/js/events.js" ></script>
-<script  src="/js/plugins.js" ></script>
-
-
-  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
-  <script>
-    (function (window, document) {
-      var typing = Fluid.plugins.typing;
-      var subtitle = document.getElementById('subtitle');
-      if (!subtitle || !typing) {
-        return;
-      }
-      var text = subtitle.getAttribute('data-typed-text');
-      
-        typing(text);
-      
-    })(window, document);
-  </script>
-
-
-
-
-  
-    <script  src="/js/img-lazyload.js" ></script>
-  
-
-
-
-
-  
-<script>
-  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
-    var toc = jQuery('#toc');
-    if (toc.length === 0 || !window.tocbot) { return; }
-    var boardCtn = jQuery('#board-ctn');
-    var boardTop = boardCtn.offset().top;
-
-    function isExpandAllEnabled() {
-      return CONFIG.toc && CONFIG.toc.expand_all === true;
-    }
-    function expandAllToc() {
-      if (!isExpandAllEnabled()) { return; }
-      jQuery('#toc-body .tocbot-is-collapsed').removeClass('tocbot-is-collapsed');
-    }
-    function updateTocToggle($li, $childList) {
-      var $toggle = $li.children('.toc-toggle');
-      if ($toggle.length === 0) { return; }
-      var collapsed = $childList.hasClass('tocbot-is-collapsed');
-      $toggle
-        .toggleClass('toc-toggle-collapsed', collapsed)
-        .toggleClass('toc-toggle-expanded', !collapsed);
-    }
-    function bindTocToggle() {
-      if (!isExpandAllEnabled()) { return; }
-      jQuery('#toc-body .toc-list-item').each(function() {
-        var $li = jQuery(this);
-        var $childList = $li.children('ol');
-        if ($childList.length === 0) {
-          if ($li.children('.toc-toggle').length === 0) {
-            $li.prepend('<span class="toc-toggle toc-toggle-placeholder" aria-hidden="true">›</span>');
-          }
-          return;
-        }
-
-        if ($li.children('.toc-toggle').length === 0) {
-          $li.prepend('<span class="toc-toggle toc-toggle-expanded" aria-hidden="true">›</span>');
-        }
-        updateTocToggle($li, $childList);
-      });
-      jQuery('#toc-body').off('click.tocToggle').on('click.tocToggle', '.toc-toggle', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var $li = jQuery(this).parent('.toc-list-item');
-        var $childList = $li.children('ol');
-        if ($childList.length === 0) { return; }
-        $childList.toggleClass('tocbot-is-collapsed');
-        updateTocToggle($li, $childList);
-      });
-      if (!window.__tocToggleObserver) {
-        window.__tocToggleObserver = new MutationObserver(function(mutations) {
-          mutations.forEach(function(mutation) {
-            if (mutation.type !== 'attributes' || mutation.attributeName !== 'class') { return; }
-            var $list = jQuery(mutation.target);
-            var $li = $list.parent('.toc-list-item');
-            if ($li.length === 0) { return; }
-            updateTocToggle($li, $list);
-          });
-        });
-        jQuery('#toc-body ol').each(function() {
-          window.__tocToggleObserver.observe(this, { attributes: true });
-        });
-      }
-    }
-    var tocConfig = Object.assign({
-      tocSelector     : '#toc-body',
-      contentSelector : '.markdown-body',
-      linkClass       : 'tocbot-link',
-      activeLinkClass : 'tocbot-active-link',
-      listClass       : 'tocbot-list',
-      isCollapsedClass: 'tocbot-is-collapsed',
-      collapsibleClass: 'tocbot-is-collapsible',
-      scrollSmooth    : true,
-      includeTitleTags: true,
-      headingsOffset  : -boardTop,
-    }, CONFIG.toc);
-    if (isExpandAllEnabled()) {
-      tocConfig.collapseDepth = 6;
-    }
-    window.tocbot.init(tocConfig);
-    if (toc.find('.toc-list-item').length > 0) {
-      toc.css('visibility', 'visible');
-    }
-    expandAllToc();
-    bindTocToggle();
-
-    Fluid.events.registerRefreshCallback(function() {
-      if ('tocbot' in window) {
-        tocbot.refresh();
-        var toc = jQuery('#toc');
-        if (toc.length === 0 || !tocbot) {
-          return;
-        }
-        if (toc.find('.toc-list-item').length > 0) {
-          toc.css('visibility', 'visible');
-        }
-        expandAllToc();
-        bindTocToggle();
-      }
-    });
-  });
-</script>
-
-
-  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
-
-  <script>Fluid.plugins.codeWidget();</script>
-
-
-  
-<script>
-  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/5.0.0/anchor.min.js', function() {
-    window.anchors.options = {
-      placement: CONFIG.anchorjs.placement,
-      visible  : CONFIG.anchorjs.visible
-    };
-    if (CONFIG.anchorjs.icon) {
-      window.anchors.options.icon = CONFIG.anchorjs.icon;
-    }
-    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
-    var res = [];
-    for (var item of el) {
-      res.push('.markdown-body > ' + item.trim());
-    }
-    if (CONFIG.anchorjs.placement === 'left') {
-      window.anchors.options.class = 'anchorjs-link-left';
-    }
-    window.anchors.add(res.join(', '));
-
-    Fluid.events.registerRefreshCallback(function() {
-      if ('anchors' in window) {
-        anchors.removeAll();
-        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
-        var res = [];
-        for (var item of el) {
-          res.push('.markdown-body > ' + item.trim());
-        }
-        if (CONFIG.anchorjs.placement === 'left') {
-          anchors.options.class = 'anchorjs-link-left';
-        }
-        anchors.add(res.join(', '));
-      }
-    });
-  });
-</script>
-
-
-  
-<script>
-  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
-    Fluid.plugins.fancyBox();
-  });
-</script>
-
-
-  <script>Fluid.plugins.imageCaption();</script>
-
-  <script  src="/js/local-search.js" ></script>
-
-
-
-
-
-<!-- 主题的启动项，将它保持在最底部 -->
-<!-- the boot of the theme, keep it at the bottom -->
-<script  src="/js/boot.js" ></script>
-
-
-  
-
-  <noscript>
-    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
-  </noscript>
-</body>
-</html>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://skytiancarl.github.io">John Doe</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://skytiancarl.github.io/2026/08/11/skynet-source-analysis-startup/">https://skytiancarl.github.io/2026/08/11/skynet-source-analysis-startup/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://skytiancarl.github.io" target="_blank">Hexo</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/skynet/">skynet</a><a class="post-meta__tags" href="/tags/C/">C</a><a class="post-meta__tags" href="/tags/Lua/">Lua</a><a class="post-meta__tags" href="/tags/%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">源码分析</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/08/10/hello-world/" title="Hello World"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Hello World</div></div><div class="info-2"><div class="info-item-1">Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub. Quick StartCreate a new post1$ hexo new &quot;My New Post&quot;  More info: Writing Run server1$ hexo server  More info: Server Generate static files1$ hexo generate  More info: Generating Deploy to remote sites1$ hexo deploy  More info: Deployment </div></div></div></a></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">John Doe</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">2</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">4</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">1</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E5%85%A5%E5%8F%A3%E5%87%BD%E6%95%B0%E4%B8%8E%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-number">1.</span> <span class="toc-text">1. 入口函数与初始化</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%85%8D%E7%BD%AE%E7%BB%93%E6%9E%84%E4%BD%93%EF%BC%9Askynet-config"><span class="toc-number">2.</span> <span class="toc-text">2. 配置结构体：skynet_config</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E7%9C%9F%E6%AD%A3%E5%90%AF%E5%8A%A8-skynet%EF%BC%9Askynet-start"><span class="toc-number">3.</span> <span class="toc-text">3. 真正启动 skynet：skynet_start()</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E5%88%9D%E5%A7%8B%E5%8C%96%E7%AC%AC%E4%B8%80%E4%B8%AA%E6%9C%8D%E5%8A%A1%EF%BC%9Alogger"><span class="toc-number">4.</span> <span class="toc-text">4. 初始化第一个服务：logger</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%90%AF%E5%8A%A8-bootstrap%EF%BC%9A%E7%AC%AC%E4%B8%80%E4%B8%AA-Lua-%E6%9C%8D%E5%8A%A1"><span class="toc-number">5.</span> <span class="toc-text">5. 启动 bootstrap：第一个 Lua 服务</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-snlua%EF%BC%9ALua-%E6%9C%8D%E5%8A%A1%E7%9A%84%E6%B2%99%E7%9B%92%E7%8E%AF%E5%A2%83"><span class="toc-number">6.</span> <span class="toc-text">6. snlua：Lua 服务的沙盒环境</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E5%AE%9E%E4%BE%8B%E5%8C%96%E8%BF%87%E7%A8%8B"><span class="toc-number">6.1.</span> <span class="toc-text">6.1 实例化过程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%88%9D%E5%A7%8B%E5%8C%96%E8%BF%87%E7%A8%8B"><span class="toc-number">6.2.</span> <span class="toc-text">6.2 初始化过程</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-Lua-%E5%B1%82%E7%9A%84%E5%85%A5%E5%8F%A3%EF%BC%9Abootstrap-lua"><span class="toc-number">7.</span> <span class="toc-text">7. Lua 层的入口：bootstrap.lua</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-skynet-start%EF%BC%9ALua-%E6%9C%8D%E5%8A%A1%E7%9A%84%E6%A0%87%E5%87%86%E5%85%A5%E5%8F%A3"><span class="toc-number">8.</span> <span class="toc-text">8. skynet.start：Lua 服务的标准入口</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#9-%E6%80%BB%E7%BB%93"><span class="toc-number">9.</span> <span class="toc-text">9. 总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/11/skynet-source-analysis-startup/" title="Skynet 源码剖析：从 main 到 bootstrap 的启动流程">Skynet 源码剖析：从 main 到 bootstrap 的启动流程</a><time datetime="2026-08-11T04:00:00.000Z" title="发表于 2026-08-11 12:00:00">2026-08-11</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/10/hello-world/" title="Hello World">Hello World</a><time datetime="2026-08-10T09:51:49.211Z" title="发表于 2026-08-10 17:51:49">2026-08-10</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By John Doe</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.2</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.7.0</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.7.0"></script><script src="/js/main.js?v=5.7.0"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
